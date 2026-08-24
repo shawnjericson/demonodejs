@@ -359,6 +359,48 @@ curl -X POST http://localhost:3000/api/games \
 
 ---
 
+## ☁️ Triển khai lên Vercel
+
+Dự án chạy được trên Vercel mà **không cần sửa một dòng logic nào** — chỉ thêm
+lớp vỏ cho môi trường serverless:
+
+| File | Vai trò |
+|---|---|
+| [api/index.js](api/index.js) | Điểm vào cho Vercel: xuất thẳng Express app, **không** gọi `app.listen()` |
+| [vercel.json](vercel.json) | Đẩy mọi đường dẫn vào hàm đó, kèm `includeFiles` để đóng gói `public/` |
+
+`src/server.js` (có `app.listen`) vẫn dùng khi chạy ở máy. Cả hai đều gọi
+chung `createApp()` nên middleware pipeline **giống hệt nhau** ở hai môi trường.
+
+### Hai điểm cần biết khi chạy trên Vercel
+
+**1. Dữ liệu không lưu vĩnh viễn.** Serverless có thư mục mã nguồn ở chế độ
+chỉ đọc, chỉ `/tmp` mới ghi được — mà `/tmp` sẽ bị xoá khi hàm nguội đi.
+Code tự nhận biết môi trường và chuyển kho dữ liệu sang đó:
+
+```js
+// src/config/index.js
+export const isServerless = Boolean(process.env.VERCEL);
+
+const resolveDataFile = () => {
+  if (process.env.DATA_FILE) return path.resolve(process.env.DATA_FILE);
+  if (isServerless) return path.join('/tmp', 'data.json');   // nơi duy nhất ghi được
+  return path.join(ROOT_DIR, 'data', 'data.json');
+};
+```
+
+Nhờ repository vốn đã tự sinh dữ liệu mẫu khi không thấy file, mỗi lần chạy
+nguội API lại có đủ 8 game — **toàn bộ CRUD vẫn hoạt động**, chỉ là game bạn
+thêm vào sẽ mất sau một thời gian không ai truy cập. Muốn lưu vĩnh viễn thì
+phải thay `repositories/` bằng một database thật (Vercel Postgres, MongoDB
+Atlas…) — đúng như thiết kế phân tầng đã tính trước, các tầng khác không phải sửa.
+
+**2. Deployment Protection.** Vercel mặc định bật SSO cho project cá nhân,
+mọi request lạ bị chuyển hướng về trang đăng nhập. Muốn gửi link cho người
+khác xem, vào **Project Settings → Deployment Protection → tắt Vercel Authentication**.
+
+---
+
 ## ⚙️ Biến môi trường
 
 Copy `.env.example` thành `.env` (hoặc truyền trực tiếp khi chạy lệnh):
