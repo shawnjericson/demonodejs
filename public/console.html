@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Game Store API — Console</title>
+<style>
+  :root{
+    --bg:#0b0d12; --bg-soft:#11141c; --panel:#151925; --panel-2:#1b2030;
+    --line:#242a3a; --line-soft:#1e2433;
+    --txt:#e6e9f2; --txt-dim:#98a1b8; --txt-faint:#66708a;
+    --acc:#7c5cff; --acc-2:#22d3ee; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(900px 500px at 12% -8%, #7c5cff22, transparent 60%),
+      radial-gradient(800px 500px at 92% 0%, #22d3ee18, transparent 55%),
+      var(--bg);
+    color:var(--txt); font-family:var(--sans); font-size:14px; line-height:1.6;
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1400px;margin:0 auto;padding:28px 24px 80px}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:26px}
+  .logo{
+    width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:24px;
+    background:linear-gradient(140deg,var(--acc),#4c3bd6);box-shadow:0 8px 28px #7c5cff40;
+  }
+  h1{font-size:20px;margin:0;letter-spacing:-.3px;font-weight:700}
+  .sub{color:var(--txt-dim);font-size:12.5px;margin-top:1px}
+  .spacer{flex:1}
+  .pill{
+    display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;
+    background:var(--panel);border:1px solid var(--line);font-size:12.5px;color:var(--txt-dim);
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--txt-faint)}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 4px #34d39926;animation:pulse 2s infinite}
+  .dot.off{background:var(--err);box-shadow:0 0 0 4px #f8717126}
+  @keyframes pulse{50%{opacity:.45}}
+
+  /* ---------- stat cards ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:24px}
+  .stat{
+    background:linear-gradient(160deg,var(--panel),var(--bg-soft));
+    border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;
+  }
+  .stat::after{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,var(--acc),var(--acc-2));opacity:.75}
+  .stat .k{color:var(--txt-faint);font-size:11px;text-transform:uppercase;letter-spacing:.9px;font-weight:600}
+  .stat .v{font-size:26px;font-weight:700;letter-spacing:-.5px;margin-top:5px;font-family:var(--mono)}
+  .stat .n{color:var(--txt-dim);font-size:11.5px}
+
+  /* ---------- layout ---------- */
+  .grid{display:grid;grid-template-columns:290px 1fr;gap:18px;align-items:start}
+  @media(max-width:1080px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .card>h2{
+    margin:0;padding:13px 16px;font-size:11.5px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--txt-faint);border-bottom:1px solid var(--line-soft);font-weight:700;
+  }
+  .card .body{padding:16px}
+
+  /* ---------- endpoint list ---------- */
+  .ep{
+    display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;
+    border-bottom:1px solid var(--line-soft);transition:background .15s;
+  }
+  .ep:last-child{border-bottom:0}
+  .ep:hover{background:var(--panel-2)}
+  .ep.active{background:#7c5cff1a;box-shadow:inset 3px 0 0 var(--acc)}
+  .verb{
+    font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px;
+    min-width:56px;text-align:center;letter-spacing:.5px;
+  }
+  .GET{background:#34d39922;color:var(--ok)}
+  .POST{background:#fbbf2422;color:var(--warn)}
+  .PUT{background:#22d3ee22;color:var(--acc-2)}
+  .DELETE{background:#f8717122;color:var(--err)}
+  .ep .path{font-family:var(--mono);font-size:12px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lock{margin-left:auto;font-size:11px;opacity:.6}
+
+  /* ---------- form ---------- */
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--txt-faint);margin-bottom:6px;font-weight:600}
+  input,select,textarea{
+    width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--txt);
+    border-radius:9px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;outline:none;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus,select:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px #7c5cff26}
+  textarea{resize:vertical;min-height:120px;line-height:1.55}
+  .row{display:flex;gap:10px;margin-bottom:14px}
+  .row>*{flex:1}
+  .row .grow-0{flex:0 0 118px}
+  button{
+    background:linear-gradient(140deg,var(--acc),#5b45d6);color:#fff;border:0;border-radius:9px;
+    padding:11px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);
+    transition:transform .12s,box-shadow .12s,opacity .12s;
+  }
+  button:hover{transform:translateY(-1px);box-shadow:0 8px 22px #7c5cff45}
+  button:active{transform:translateY(0)}
+  button:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+  button.ghost{background:var(--panel-2);border:1px solid var(--line);color:var(--txt-dim);font-weight:500}
+  button.ghost:hover{color:var(--txt);box-shadow:none}
+
+  /* ---------- response ---------- */
+  .resp-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;
+    border-bottom:1px solid var(--line-soft);background:var(--bg-soft)}
+  .badge{font-family:var(--mono);font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:6px}
+  .b2{background:#34d39922;color:var(--ok)} .b4{background:#fbbf2422;color:var(--warn)}
+  .b5{background:#f8717122;color:var(--err)} .b0{background:#66708a22;color:var(--txt-faint)}
+  .meta{font-family:var(--mono);font-size:11.5px;color:var(--txt-faint)}
+  pre{
+    margin:0;padding:16px;font-family:var(--mono);font-size:12.5px;line-height:1.65;
+    max-height:460px;overflow:auto;white-space:pre-wrap;word-break:break-word;
+  }
+  .t-key{color:#7dd3fc} .t-str{color:#a5f3a0} .t-num{color:#fdba74}
+  .t-bool{color:#c4b5fd} .t-null{color:var(--txt-faint)}
+
+  /* ---------- chips + game grid ---------- */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{
+    padding:6px 13px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line);
+    font-size:12px;cursor:pointer;color:var(--txt-dim);transition:all .15s;user-select:none;
+  }
+  .chip:hover{border-color:var(--acc);color:var(--txt)}
+  .chip.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  .games{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:13px}
+  .game{
+    background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;padding:14px;
+    transition:transform .15s,border-color .15s;
+  }
+  .game:hover{transform:translateY(-2px);border-color:var(--acc)}
+  .game .t{font-weight:650;font-size:14px;margin-bottom:9px;letter-spacing:-.2px}
+  .game .g{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:5px;
+    background:#7c5cff22;color:#b9a7ff;margin-bottom:9px;font-weight:600}
+  .game .p{font-family:var(--mono);font-size:15px;color:var(--acc-2);font-weight:600}
+  .game .d{font-size:11.5px;color:var(--txt-faint);margin-top:5px}
+  .game .id{font-family:var(--mono);font-size:10px;color:var(--txt-faint);margin-top:9px;
+    padding-top:9px;border-top:1px solid var(--line-soft);cursor:pointer;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .game .id:hover{color:var(--acc-2)}
+  .empty{color:var(--txt-faint);text-align:center;padding:38px;font-size:13px}
+  .hint{font-size:11.5px;color:var(--txt-faint);margin-top:7px;line-height:1.5}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:var(--panel-2);border:1px solid var(--acc);color:var(--txt);padding:11px 20px;
+    border-radius:10px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:99;
+    box-shadow:0 12px 34px #0009;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">🎮</div>
+    <div>
+      <h1>Game Store API</h1>
+      <div class="sub">Express.js · REST · Custom Middleware Pipeline</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="pill"><span class="dot" id="healthDot"></span><span id="healthTxt">đang kiểm tra…</span></div>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <div class="grid">
+
+    <!-- ============ CỘT TRÁI ============ -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="card">
+        <h2>Endpoints</h2>
+        <div id="epList"></div>
+      </div>
+
+      <div class="card">
+        <h2>🔐 Xác thực</h2>
+        <div class="body">
+          <label for="apiKey">Header x-api-key</label>
+          <input id="apiKey" value="super-secret-key" spellcheck="false" />
+          <div class="hint">Chỉ bắt buộc với <b>POST</b>, <b>PUT</b>, <b>DELETE</b>. Sửa thành giá trị sai để thấy lỗi <b>401</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CỘT PHẢI ============ -->
+    <div style="display:flex;flex-direction:column;gap:18px">
+
+      <div class="card">
+        <h2>Trình gửi request</h2>
+        <div class="body">
+          <div class="row">
+            <div class="grow-0">
+              <label for="method">Method</label>
+              <select id="method">
+                <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+              </select>
+            </div>
+            <div>
+              <label for="url">Đường dẫn</label>
+              <input id="url" value="/api/games" spellcheck="false" />
+            </div>
+          </div>
+
+          <div id="bodyBox" style="display:none;margin-bottom:14px">
+            <label for="reqBody">Request body (JSON)</label>
+            <textarea id="reqBody" spellcheck="false"></textarea>
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button id="send">▶  Gửi request</button>
+            <button class="ghost" id="fillValid">Mẫu hợp lệ</button>
+            <button class="ghost" id="fillInvalid">Mẫu sai (400)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Response</h2>
+        <div class="resp-head">
+          <span class="badge b0" id="status">—</span>
+          <span class="meta" id="time">—</span>
+          <span class="meta" id="size">—</span>
+          <span style="flex:1"></span>
+          <span class="meta" id="reqId"></span>
+        </div>
+        <pre id="out">Chọn một endpoint bên trái rồi bấm “Gửi request”  (Ctrl + Enter).</pre>
+      </div>
+
+      <div class="card">
+        <h2>Kho game · lọc theo thể loại</h2>
+        <div class="body">
+          <div class="chips" id="chips"></div>
+          <div class="games" id="games"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const fmtVND = (n) => new Intl.NumberFormat('vi-VN').format(Number(n) || 0) + ' ₫';
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+/* ---------------- danh sách endpoint ---------------- */
+const ENDPOINTS = [
+  { m:'GET',    p:'/api/games',           lock:false },
+  { m:'GET',    p:'/api/games?genre=RPG', lock:false },
+  { m:'GET',    p:'/api/games/stats',     lock:false },
+  { m:'GET',    p:'/api/games/:id',       lock:false },
+  { m:'POST',   p:'/api/games',           lock:true  },
+  { m:'PUT',    p:'/api/games/:id',       lock:true  },
+  { m:'DELETE', p:'/api/games/:id',       lock:true  },
+  { m:'GET',    p:'/api/health',          lock:false }
+];
+
+const SAMPLE_VALID = {
+  title: 'Cyberpunk 2077',
+  genre: 'RPG',
+  price: 690000,
+  developer: 'CD Projekt Red',
+  releaseYear: 2020,
+  rating: 8.6,
+  stock: 40
+};
+const SAMPLE_INVALID = { title: '   ', genre: 123, price: -50 };
+
+let lastId = null;
+let activeGenre = null;
+
+function renderEndpoints(){
+  $('epList').innerHTML = ENDPOINTS.map((e, i) =>
+    '<div class="ep" data-i="' + i + '">' +
+      '<span class="verb ' + e.m + '">' + e.m + '</span>' +
+      '<span class="path">' + e.p.replace('/api', '') + '</span>' +
+      (e.lock ? '<span class="lock">🔐</span>' : '') +
+    '</div>').join('');
+
+  document.querySelectorAll('.ep').forEach((el) => {
+    el.onclick = () => {
+      document.querySelectorAll('.ep').forEach((x) => x.classList.remove('active'));
+      el.classList.add('active');
+
+      const e = ENDPOINTS[Number(el.dataset.i)];
+      $('method').value = e.m;
+      $('url').value = e.p.includes(':id') && lastId ? e.p.replace(':id', lastId) : e.p;
+      syncBodyBox();
+      if (e.m === 'POST' || e.m === 'PUT') {
+        $('reqBody').value = JSON.stringify(SAMPLE_VALID, null, 2);
+      }
+    };
+  });
+}
+
+function syncBodyBox(){
+  const m = $('method').value;
+  $('bodyBox').style.display = (m === 'POST' || m === 'PUT') ? 'block' : 'none';
+}
+
+/* ---------------- tô màu JSON ---------------- */
+function highlight(obj){
+  const json = JSON.stringify(obj, null, 2)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    (match) => {
+      let cls = 't-num';
+      if (/^"/.test(match))              cls = /:$/.test(match) ? 't-key' : 't-str';
+      else if (/true|false/.test(match)) cls = 't-bool';
+      else if (/null/.test(match))       cls = 't-null';
+      return '<span class="' + cls + '">' + match + '</span>';
+    }
+  );
+}
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 1900);
+}
+
+/* ---------------- gửi request ---------------- */
+async function send(){
+  const method = $('method').value;
+  const url = $('url').value.trim();
+  const btn = $('send');
+
+  if (url.includes(':id')) {
+    toast('Hãy thay :id bằng id thật — bấm vào dòng id của một game bên dưới.');
+    return;
+  }
+
+  const headers = {};
+  let body;
+  if (method === 'POST' || method === 'PUT') {
+    headers['Content-Type'] = 'application/json';
+    body = $('reqBody').value;
+  }
+  if (['POST', 'PUT', 'DELETE'].includes(method)) {
+    headers['x-api-key'] = $('apiKey').value;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳  Đang gửi…';
+  const t0 = performance.now();
+
+  try {
+    const res  = await fetch(url, { method, headers, body });
+    const text = await res.text();
+    const ms   = (performance.now() - t0).toFixed(0);
+
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { parsed = text; }
+
+    const cls = res.status >= 500 ? 'b5' : res.status >= 400 ? 'b4' : 'b2';
+    $('status').className   = 'badge ' + cls;
+    $('status').textContent = res.status + ' ' + res.statusText;
+    $('time').textContent   = '⏱ ' + ms + ' ms';
+    $('size').textContent   = '📦 ' + (new Blob([text]).size / 1024).toFixed(2) + ' KB';
+    $('reqId').textContent  = parsed && parsed.requestId ? '#' + parsed.requestId : '';
+    $('out').innerHTML      = typeof parsed === 'string' ? escapeHtml(parsed) : highlight(parsed);
+
+    if (['POST', 'PUT', 'DELETE'].includes(method) && res.ok) refreshAll();
+  } catch (err) {
+    $('status').className   = 'badge b5';
+    $('status').textContent = 'NETWORK';
+    $('out').textContent    = 'Không gọi được API: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶  Gửi request';
+  }
+}
+
+/* ---------------- dashboard ---------------- */
+async function loadStats(){
+  try {
+    const r = await fetch('/api/games/stats');
+    const { data } = await r.json();
+
+    $('stats').innerHTML =
+      '<div class="stat"><div class="k">Tổng số game</div><div class="v">' + data.totalGames +
+        '</div><div class="n">bản ghi trong data.json</div></div>' +
+      '<div class="stat"><div class="k">Thể loại</div><div class="v">' + data.genres.length +
+        '</div><div class="n">' + escapeHtml(data.genres.slice(0, 3).join(' · ')) +
+        (data.genres.length > 3 ? ' …' : '') + '</div></div>' +
+      '<div class="stat"><div class="k">Giá trung bình</div><div class="v" style="font-size:19px">' +
+        fmtVND(data.priceRange.average) + '</div><div class="n">thấp nhất ' + fmtVND(data.priceRange.min) + '</div></div>' +
+      '<div class="stat"><div class="k">Giá cao nhất</div><div class="v" style="font-size:19px">' +
+        fmtVND(data.priceRange.max) + '</div><div class="n">trong toàn kho</div></div>';
+
+    const genres = ['Tất cả'].concat(data.genres);
+    $('chips').innerHTML = genres.map((g) => {
+      const val = g === 'Tất cả' ? '' : g;
+      const on  = (activeGenre || '') === val ? ' on' : '';
+      const n   = val ? ' (' + data.countByGenre[val] + ')' : ' (' + data.totalGames + ')';
+      return '<div class="chip' + on + '" data-g="' + escapeHtml(val) + '">' + escapeHtml(g) + n + '</div>';
+    }).join('');
+
+    document.querySelectorAll('.chip').forEach((c) => {
+      c.onclick = () => {
+        activeGenre = c.dataset.g || null;
+        $('url').value = activeGenre
+          ? '/api/games?genre=' + encodeURIComponent(activeGenre)
+          : '/api/games';
+        $('method').value = 'GET';
+        syncBodyBox();
+        loadStats();
+        loadGames();
+      };
+    });
+  } catch { /* server chưa sẵn sàng */ }
+}
+
+async function loadGames(){
+  try {
+    const qs = activeGenre
+      ? '?genre=' + encodeURIComponent(activeGenre) + '&limit=100'
+      : '?limit=100';
+    const r = await fetch('/api/games' + qs);
+    const { data } = await r.json();
+
+    if (!data.length) {
+      $('games').innerHTML = '<div class="empty">Không có game nào khớp bộ lọc này.</div>';
+      return;
+    }
+    if (!lastId) lastId = data[0].id;
+
+    $('games').innerHTML = data.map((g) =>
+      '<div class="game">' +
+        '<div class="t">' + escapeHtml(g.title) + '</div>' +
+        '<span class="g">' + escapeHtml(g.genre) + '</span>' +
+        '<div class="p">' + fmtVND(g.price) + '</div>' +
+        '<div class="d">' + escapeHtml(g.developer || '—') + ' · ' + (g.releaseYear || '—') +
+          ' · ⭐ ' + (g.rating ?? '—') + '</div>' +
+        '<div class="id" data-id="' + escapeHtml(g.id) + '" title="Bấm để dùng id này">🆔 ' +
+          escapeHtml(g.id) + '</div>' +
+      '</div>').join('');
+
+    document.querySelectorAll('.game .id').forEach((el) => {
+      el.onclick = () => {
+        lastId = el.dataset.id;
+        $('url').value = $('url').value.includes(':id')
+          ? $('url').value.replace(':id', lastId)
+          : '/api/games/' + lastId;
+        toast('Đã điền id vào ô đường dẫn');
+      };
+    });
+  } catch { /* server chưa sẵn sàng */ }
+}
+
+async function loadHealth(){
+  try {
+    const r = await fetch('/api/health');
+    const { data } = await r.json();
+    $('healthDot').className  = 'dot on';
+    $('healthTxt').textContent = 'online · ' + data.env + ' · ' + data.uptimeSeconds + 's';
+  } catch {
+    $('healthDot').className  = 'dot off';
+    $('healthTxt').textContent = 'server offline';
+  }
+}
+
+function refreshAll(){ loadStats(); loadGames(); loadHealth(); }
+
+/* ---------------- khởi động ---------------- */
+$('send').onclick    = send;
+$('method').onchange = syncBodyBox;
+$('fillValid').onclick = () => {
+  $('method').value = 'POST'; $('url').value = '/api/games'; syncBodyBox();
+  $('reqBody').value = JSON.stringify(SAMPLE_VALID, null, 2);
+};
+$('fillInvalid').onclick = () => {
+  $('method').value = 'POST'; $('url').value = '/api/games'; syncBodyBox();
+  $('reqBody').value = JSON.stringify(SAMPLE_INVALID, null, 2);
+};
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') send();
+});
+
+renderEndpoints();
+refreshAll();
+setInterval(loadHealth, 15000);
+</script>
+</body>
+</html>
