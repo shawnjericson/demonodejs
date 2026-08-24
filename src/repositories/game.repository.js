@@ -125,6 +125,7 @@ const seedGames = () => [
     releaseYear: 2023,
     rating: 9.9,
     stock: 24,
+    coverUrl: '/covers/baldurs-gate-3.jpg',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
